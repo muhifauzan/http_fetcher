@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from bs4 import BeautifulSoup as XMLParser
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import logging as lg
 import re
@@ -45,25 +45,26 @@ def print_metadata(sitename, html):
     print(f'last_fetch: {time}')
 
 
-def archive_asset(session, assets_dir, sitename, html, tag, prop, ext):
+def archive_asset(session, assets_dir, sitename, html, tag, ref_prop, ext):
     for found_tag in html.find_all(tag):
-        tag_prop = found_tag.get(prop)
+        ref = found_tag.get(ref_prop)
 
-        if tag_prop and tag_prop.startswith('/') and tag_prop.endswith(ext):
-            response = session.get('https://' + sitename + tag_prop)
+        if ref and ref.startswith('/') and ref.endswith(ext):
+            file_name = Path(ref).name
+            file_path = assets_dir.joinpath(file_name)
 
-            if response.status_code == 200:
-                asset_file = Path(tag_prop).name
-                asset_path = assets_dir.joinpath(asset_file)
+            if not file_path.exists():
+                response = session.get(urljoin(f'https://{sitename}', ref))
 
-                if ext in ['.png', '.jpg']:
-                    with asset_path.open('wb') as af:
-                        for chunk in response:
-                            af.write(chunk)
-                else:
-                    asset_path.write_text(response.text)
+                if response.status_code == 200:
+                    if ext in ['.png', '.jpg']:
+                        with file_path.open('wb') as af:
+                            for chunk in response:
+                                af.write(chunk)
+                    else:
+                        file_path.write_text(response.text)
 
-                found_tag[prop] = str(asset_path)
+            found_tag[ref_prop] = str(file_path)
 
 
 def archive_assets(session, sitename, html):

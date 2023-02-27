@@ -9,9 +9,9 @@ import re
 import requests as rq
 
 
-def get_html_text(url):
+def get_html_text(session, url):
     try:
-        response = rq.get(url)
+        response = session.get(url)
 
         if response.status_code not in range(200, 299):
             raise RuntimeError()
@@ -45,12 +45,12 @@ def print_metadata(sitename, html):
     print(f'last_fetch: {time}')
 
 
-def archive_asset(assets_dir, sitename, html, tag, prop, ext):
-    for tag in html.find_all(tag):
-        tag_prop = tag.get(prop)
+def archive_asset(session, assets_dir, sitename, html, tag, prop, ext):
+    for found_tag in html.find_all(tag):
+        tag_prop = found_tag.get(prop)
 
         if tag_prop and tag_prop.startswith('/') and tag_prop.endswith(ext):
-            response = rq.get('https://' + sitename + tag_prop)
+            response = session.get('https://' + sitename + tag_prop)
 
             if response.status_code == 200:
                 asset_file = Path(tag_prop).name
@@ -63,19 +63,19 @@ def archive_asset(assets_dir, sitename, html, tag, prop, ext):
                 else:
                     asset_path.write_text(response.text)
 
-                tag[prop] = str(asset_path)
+                found_tag[prop] = str(asset_path)
 
 
-def archive_assets(sitename, html):
+def archive_assets(session, sitename, html):
     assets_dir = Path(sitename.replace('.', '_') + '_assets')
 
     if not assets_dir.exists():
         assets_dir.mkdir()
 
-    archive_asset(assets_dir, sitename, html, 'link', 'href', '.css')
-    archive_asset(assets_dir, sitename, html, 'script', 'src', '.js')
-    archive_asset(assets_dir, sitename, html, 'img', 'src', '.png')
-    archive_asset(assets_dir, sitename, html, 'img', 'src', '.jpg')
+    archive_asset(session, assets_dir, sitename, html, 'link', 'href', '.css')
+    archive_asset(session, assets_dir, sitename, html, 'script', 'src', '.js')
+    archive_asset(session, assets_dir, sitename, html, 'img', 'src', '.png')
+    archive_asset(session, assets_dir, sitename, html, 'img', 'src', '.jpg')
 
     return html
 
@@ -92,12 +92,14 @@ def main():
     parser.add_argument('-v', '--version', action='version', version='v1.0.0')
     args = parser.parse_args()
 
+    session = rq.Session()
+
     for url in args.urls:
         if not re.match(r'https://www\..+', url):
             lg.error(f"can't process url format {url}")
             continue
 
-        html_text = get_html_text(url)
+        html_text = get_html_text(session, url)
         sitename = urlparse(url).netloc
 
         if html_text:
@@ -107,7 +109,7 @@ def main():
                 print_metadata(sitename, html)
 
             if args.is_with_assets:
-                html = archive_assets(sitename, html)
+                html = archive_assets(session, sitename, html)
 
             Path(sitename + '.html').write_text(str(html))
         else:

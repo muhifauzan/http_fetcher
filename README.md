@@ -21,7 +21,7 @@ $ docker build . -t fetch
 To download tailwindcss home page, you can do it like this
 
 ```shell
-$ python3 fetch.py https://www.tailwindcss.com --assets
+$ ./fetch https://www.tailwindcss.com --assets
 ```
 
 or if you build the image
@@ -33,7 +33,7 @@ $ docker run --rm -it -v $PWD/:/app fetch https://www.tailwindcss.com --assets
 See help for more detail
 
 ```shell
-$ python3 fetch.py --help
+$ ./fetch --help
 ```
 
 For simplicity, the only accepted URL format is `https://www.sitename.com/path?query=value`.
